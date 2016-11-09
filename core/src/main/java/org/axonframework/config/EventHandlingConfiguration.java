@@ -58,14 +58,16 @@ public class EventHandlingConfiguration implements ModuleConfiguration {
     }
 
     private SubscribingEventProcessor defaultEventProcessor(Configuration conf, String name, List<?> eh) {
-        return new SubscribingEventProcessor(name,
-                                             new SimpleEventHandlerInvoker(eh,
-                                                                           conf.getComponent(
-                                                                                   ListenerErrorHandler.class,
-                                                                                   LoggingListenerErrorHandler::new)),
-                                             conf.eventBus(),
-                                             conf.messageMonitor(SubscribingEventProcessor.class,
-                                                                 name));
+        SubscribingEventProcessor processor = new SubscribingEventProcessor(name,
+                                                                                            new SimpleEventHandlerInvoker(eh,
+                                                                                                                          conf.getComponent(
+                                                                                                                                  ListenerErrorHandler.class,
+                                                                                                                                  LoggingListenerErrorHandler::new)),
+                                                                                            conf.eventBus(),
+                                                                                            conf.messageMonitor(SubscribingEventProcessor.class,
+                                                                                                                name));
+        processor.registerInterceptor(new CorrelationDataInterceptor<>(conf.correlationDataProviders()));
+        return processor;
     }
 
     /**
@@ -106,8 +108,7 @@ public class EventHandlingConfiguration implements ModuleConfiguration {
                                                                                         NoTransactionManager::instance),
                                                                       conf.messageMonitor(EventProcessor.class,
                                                                                           name));
-        CorrelationDataInterceptor<EventMessage<?>> interceptor = new CorrelationDataInterceptor<>();
-        interceptor.registerCorrelationDataProviders(conf.correlationDataProviders());
+        CorrelationDataInterceptor<EventMessage<?>> interceptor = new CorrelationDataInterceptor<>(conf.correlationDataProviders());
         processor.registerInterceptor(interceptor);
         processor.registerInterceptor(new TransactionManagingInterceptor<>(conf.getComponent(TransactionManager.class, NoTransactionManager::instance)));
         return processor;
